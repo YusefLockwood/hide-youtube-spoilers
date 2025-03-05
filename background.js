@@ -28,10 +28,59 @@ function extractJsonFromMarkdown(responseText) {
   }
 }
 
+// Track spoiler counts per tab
+const tabSpoilerCounts = new Map();
+
+// Initialize when a tab is updated to a YouTube watch page
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && tab.url.includes('youtube.com/watch')) {
+    tabSpoilerCounts.set(tabId, 0);
+    updateBadge(tabId);
+  }
+});
+
+// Clear count when tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (tabSpoilerCounts.has(tabId)) {
+    tabSpoilerCounts.delete(tabId);
+  }
+});
+
+// Update active tab when the user switches tabs
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  updateBadge(activeInfo.tabId);
+});
+
+// Update badge for a specific tab
+function updateBadge(tabId) {
+  const count = tabSpoilerCounts.get(tabId) || 0;
+  
+  if (count > 0) {
+    // Show badge with count
+    chrome.action.setBadgeText({ text: count.toString(), tabId });
+    chrome.action.setBadgeBackgroundColor({ color: '#CC0000', tabId });
+  } else {
+    // Hide badge
+    chrome.action.setBadgeText({ text: '', tabId });
+  }
+  
+  log(`Updated badge for tab ${tabId} with count ${count}`);
+}
+
+// Update the spoiler count for a tab
+function updateSpoilerCount(tabId, newSpoilers) {
+  const currentCount = tabSpoilerCounts.get(tabId) || 0;
+  const newCount = currentCount + newSpoilers;
+  tabSpoilerCounts.set(tabId, newCount);
+  updateBadge(tabId);
+  
+  log(`Updated spoiler count for tab ${tabId}: ${currentCount} -> ${newCount}`);
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'checkSpoilers') {
     log('Received checkSpoilers message');
+    const tabId = sender.tab.id;
 
     chrome.storage.local.get(['apiKey', 'debugMode'], async (data) => {
       const apiKey = data.apiKey;
@@ -102,6 +151,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         if (Array.isArray(result.spoilerIndices)) {
           log('Returning spoiler indices', result.spoilerIndices);
+          
+          // Update spoiler count for this tab
+          updateSpoilerCount(tabId, result.spoilerIndices.length);
+          
           sendResponse({ spoilerIndices: result.spoilerIndices });
         } else {
           log('Invalid response format', result);
@@ -114,5 +167,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
 
     return true;
+  }
+  
+  if (message.type === 'updateSpoilerCount') {
+    const { count } = message.payload;
+    const tabId = sender.tab.id;
+    
+    if (typeof count === 'number') {
+      // Set the exact count (not incrementing)
+      tabSpoilerCounts.set(tabId, count);
+      updateBadge(tabId);
+      log(`Set spoiler count for tab ${tabId} to ${count}`);
+    }
+    
+    return false;
   }
 });

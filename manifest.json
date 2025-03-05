@@ -3,7 +3,7 @@
   "name": "YouTube Spoiler Hider",
   "version": "1.0",
   "description": "Hides spoilers in YouTube comments using AI.",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "host_permissions": ["https://api.openrouter.ai/*"],
   "background": {
     "service_worker": "background.js"
@@ -16,5 +16,12 @@
       "run_at": "document_end"
     }
   ],
-  "options_page": "options.html"
+  "options_page": "options.html",
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
 }

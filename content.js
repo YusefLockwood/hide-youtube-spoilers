@@ -3,6 +3,7 @@
   let processedCommentIds = new Set(); // Track processed comments by their IDs
   let isInitialBatch = true; // Flag to track if this is the first batch
   let isProcessing = false; // Flag to prevent concurrent processing
+  let totalSpoilersHidden = 0; // Track total spoilers hidden on this page
   
   // Initialize debugMode value from storage
   chrome.storage.local.get('debugMode', (result) => {
@@ -13,6 +14,15 @@
     if (debugMode) {
       console.log(`[SpoilerHider Content] ${message}`);
     }
+  }
+  
+  // Update badge with current spoiler count
+  function updateBadgeCount() {
+    chrome.runtime.sendMessage({
+      type: 'updateSpoilerCount',
+      payload: { count: totalSpoilersHidden }
+    });
+    log(`Updated badge count: ${totalSpoilersHidden} spoilers hidden`);
   }
 
   function injectStyles() {
@@ -310,6 +320,13 @@
         if (response && response.spoilerIndices) {
           log('Received spoiler data from background:', response.spoilerIndices);
           showNonSpoilers(commentsData, response.spoilerIndices);
+          
+          // Update total spoilers count
+          totalSpoilersHidden += response.spoilerIndices.length;
+          log(`Total spoilers hidden: ${totalSpoilersHidden}`);
+          
+          // Update badge
+          updateBadgeCount();
         } else {
           showErrorMessage('Failed to retrieve spoiler data.');
           showNonSpoilers(commentsData, []);
@@ -337,6 +354,10 @@
 
   (async function() {
     try {
+      // Reset spoiler count on page load
+      totalSpoilersHidden = 0;
+      updateBadgeCount();
+      
       // Inject styles for our UI elements
       injectStyles();
       
