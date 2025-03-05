@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>YouTube Spoiler Hider - Options</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    label { display: block; margin-bottom: 8px; }
+    input { width: 300px; padding: 5px; }
+    button { margin-top: 10px; padding: 5px 15px; }
+    #status { margin-top: 10px; color: green; }
+    .checkbox-container { margin-top: 20px; }
+    .checkbox-container input { width: auto; }
+  </style>
+</head>
+<body>
+
+<h1>YouTube Spoiler Hider - Options</h1>
+<label for="apiKey">OpenRouter API Key:</label>
+<input type="text" id="apiKey" placeholder="Enter your OpenRouter API key">
+
+<div class="checkbox-container">
+  <label for="debugMode">
+    <input type="checkbox" id="debugMode"> Enable debug logging
+  </label>
+</div>
+
+<button id="saveButton">Save</button>
+<p id="status"></p>
+
+<script src="options.js"></script>
+
+</body>
+</html>
