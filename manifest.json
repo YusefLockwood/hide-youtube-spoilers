@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Spoiler Hider",
+  "name": "YouTube Comment Spoiler Hider for Sports",
   "version": "1.0",
-  "description": "Hides spoilers in YouTube comments using AI.",
+  "description": "Hides sports spoilers in YouTube comments using AI.",
   "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "host_permissions": ["https://api.openrouter.ai/*"],
   "background": {

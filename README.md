@@ -1,10 +1,10 @@
-# YouTube Sports Spoiler Hider <img src="icons/icon48.png" alt="YouTube Sports Spoiler Hider Icon" align="right" />
+# YouTube Comment Spoiler Hider for Sports <img src="icons/icon48.png" alt="YouTube Comment Spoiler Hider for Sports Icon" align="right" />
 
 A Chrome extension that uses AI to hide spoilers in YouTube comments, keeping your viewing experience enjoyment intact. You'll no longer see comments that give away who wins in competitive sports.
 
 ## Overview
 
-YouTube Sports Spoiler Hider is a browser extension that analyzes comments on YouTube videos to detect and hide potential spoilers. Using AI-powered content analysis, it identifies comments that might reveal important information about game outcomes, competition results, or plot twists.
+YouTube Comment Spoiler Hider for Sports is a browser extension that analyzes comments on YouTube videos to detect and hide potential spoilers. Using AI-powered content analysis, it identifies comments that might reveal important information about game outcomes, competition results, or plot twists.
 
 ## Features
 
