@@ -1,5 +1,8 @@
 (function() {
   let debugMode = false;
+  let processedCommentIds = new Set(); // Track processed comments by their IDs
+  let isInitialBatch = true; // Flag to track if this is the first batch
+  let isProcessing = false; // Flag to prevent concurrent processing
   
   // Initialize debugMode value from storage
   chrome.storage.local.get('debugMode', (result) => {
@@ -135,6 +138,49 @@
     setTimeout(() => errorDiv.remove(), 5000);
   }
 
+  // Function to observe new comments being added
+  function observeCommentAddition() {
+    log('Setting up comment addition observer');
+    const commentsSection = document.querySelector("#sections.ytd-comments");
+    if (!commentsSection) return;
+    
+    const commentObserver = new MutationObserver((mutations) => {
+      if (isProcessing) return; // Don't start another processing cycle if one is already going
+      
+      const commentThreads = document.querySelectorAll('ytd-comment-thread-renderer');
+      const unprocessedComments = Array.from(commentThreads).filter(comment => {
+        // Check if this comment has an ID
+        const commentId = comment.getAttribute('data-comment-id') || 
+                         comment.getAttribute('id') || 
+                         comment.dataset.commentId;
+                         
+        // If it doesn't have an ID, assign one
+        if (!commentId) {
+          const randomId = 'comment-' + Math.random().toString(36).substr(2, 9);
+          comment.setAttribute('data-comment-id', randomId);
+          return true; // Unprocessed
+        }
+        
+        // Check if we've already processed this comment
+        return !processedCommentIds.has(commentId);
+      });
+      
+      // If we have enough new comments, process them
+      if (unprocessedComments.length >= 20) {
+        log(`Found ${unprocessedComments.length} new comments to analyze`);
+        processNewComments(unprocessedComments);
+      }
+    });
+    
+    commentObserver.observe(commentsSection, { 
+      childList: true, 
+      subtree: true
+    });
+    
+    log('Comment addition observer set up');
+    return commentObserver;
+  }
+
   async function waitForComments() {
     log('Waiting for comments to load');
     return new Promise(resolve => {
@@ -143,22 +189,25 @@
         if (commentsSection) {
           const commentsLoaded = commentsSection.querySelectorAll('ytd-comment-thread-renderer');
           if (commentsLoaded.length > 0) {
-            log('First comment detected - hiding entire comments section');
+            log('First comment detected');
             
-            // Hide the entire comments content section
-            const commentsContent = commentsSection.querySelector('#contents');
-            if (commentsContent) {
-              commentsContent.style.visibility = 'hidden';
-              log('Comments content section hidden');
-            } else {
-              log('Comments content section not found');
+            if (isInitialBatch) {
+              // For the first batch, hide the entire comments section
+              log('Initial batch - hiding entire comments section');
+              const commentsContent = commentsSection.querySelector('#contents');
+              if (commentsContent) {
+                commentsContent.style.visibility = 'hidden';
+                log('Comments content section hidden');
+              } else {
+                log('Comments content section not found');
+              }
             }
             
             // Continue watching until we have enough comments to analyze
-            if (commentsLoaded.length > 19) {
+            if (commentsLoaded.length >= 20) {
               log('Enough comments loaded for analysis');
               obs.disconnect();
-              resolve(commentsSection);
+              resolve(commentsLoaded);
             }
           }
         }
@@ -167,71 +216,54 @@
     });
   }
 
-  function hideAllComments() {
-    const commentThreads = document.querySelectorAll('ytd-comment-thread-renderer');
-    return Array.from(commentThreads).map((elem, index) => {
-      elem.style.display = 'none';  // Immediately hide all
+  function hideComments(comments) {
+    return Array.from(comments).map((elem, index) => {
+      // Mark as processed
+      const commentId = elem.getAttribute('data-comment-id') || 
+                       elem.getAttribute('id') || 
+                       elem.dataset.commentId || 
+                       ('comment-' + Math.random().toString(36).substr(2, 9));
+      
+      // Ensure comment has an ID for tracking
+      if (!elem.hasAttribute('data-comment-id')) {
+        elem.setAttribute('data-comment-id', commentId);
+      }
+      
+      processedCommentIds.add(commentId);
+      
+      // Hide the comment
+      elem.style.display = 'none';
+      
+      // Extract comment text
       const commentTextElem = elem.querySelector('#content-text');
       const text = commentTextElem ? commentTextElem.innerText : '';
-      if (debugMode) {
-        console.log(`Hiding comment ${index}: ${text}`);
-      }
-      return { index, text };
+      log(`Hiding comment ${commentId}: ${text}`);
+
+      return { commentId, text, element: elem };
     });
   }
 
-  function showNonSpoilers(spoilerIndices) {
-    const commentThreads = document.querySelectorAll('ytd-comment-thread-renderer');
-    commentThreads.forEach((elem, index) => {
+  function showNonSpoilers(commentsData, spoilerIndices) {
+    commentsData.forEach((commentData, index) => {
       if (!spoilerIndices.includes(index)) {
-        if (debugMode) {
-          console.log(`Revealing comment ${index}`);
-        }
-        elem.style.display = '';
+        log(`Revealing comment ${commentData.commentId}`);
+        commentData.element.style.display = '';
       } else {
-        if (debugMode) {
-          console.log(`Keeping comment ${index} hidden (spoiler detected)`);
-        }
+        log(`Keeping comment ${commentData.commentId} hidden (spoiler detected)`);
       }
     });
     
-    // Make the comments section visible again
-    const commentsSection = document.querySelector("#sections.ytd-comments");
-    if (commentsSection) {
-      const commentsContent = commentsSection.querySelector('#contents');
-      if (commentsContent) {
-        commentsContent.style.visibility = 'visible';
-        log('Comments content section revealed');
-      }
-    }
-    
-    // If spoilers were found, show a message
-    if (spoilerIndices.length > 0) {
-      const spoilerMsg = document.createElement('div');
-      spoilerMsg.className = 'spoiler-overlay';
-      spoilerMsg.style.backgroundColor = 'rgba(0, 100, 0, 0.8)';
-      spoilerMsg.style.padding = '10px';
-      spoilerMsg.style.marginBottom = '10px';
-      
-      const msgText = document.createElement('div');
-      msgText.className = 'spoiler-message';
-      msgText.textContent = `${spoilerIndices.length} spoiler${spoilerIndices.length > 1 ? 's' : ''} hidden`;
-      
-      spoilerMsg.appendChild(msgText);
-      
-      // Insert at the top of the comments section
+    // If this is the initial batch, make the comments section visible again
+    if (isInitialBatch) {
       const commentsSection = document.querySelector("#sections.ytd-comments");
       if (commentsSection) {
-        const firstChild = commentsSection.firstChild;
-        commentsSection.insertBefore(spoilerMsg, firstChild);
-        
-        // Auto-remove after some time
-        setTimeout(() => {
-          if (spoilerMsg.parentNode) {
-            spoilerMsg.remove();
-          }
-        }, 10000);
+        const commentsContent = commentsSection.querySelector('#contents');
+        if (commentsContent) {
+          commentsContent.style.visibility = 'visible';
+          log('Comments content section revealed');
+        }
       }
+      isInitialBatch = false;
     }
   }
 
@@ -241,20 +273,21 @@
     log(`Detected video title: ${title}`);
     return title;
   }
-
-  (async function() {
+  
+  async function processNewComments(comments) {
     try {
-      // Inject styles for our UI elements
-      injectStyles();
+      isProcessing = true;
+      log(`Processing ${comments.length} new comments`);
       
-      await waitForComments();
-      showLoadingIndicator();
+      // Only show loading indicator for the initial batch
+      if (isInitialBatch) {
+        showLoadingIndicator();
+      }
 
-      const commentsData = hideAllComments();
+      const commentsData = hideComments(comments);
       const videoTitle = getVideoTitle();
 
       log('Sending comments data to background for processing');
-
       chrome.runtime.sendMessage({
         type: 'checkSpoilers',
         payload: {
@@ -262,25 +295,69 @@
           comments: commentsData.map(item => item.text)
         }
       }, function(response) {
-        hideLoadingIndicator();
+        if (isInitialBatch) {
+          hideLoadingIndicator();
+        }
 
         if (chrome.runtime.lastError) {
           showErrorMessage('Failed to check spoilers (communication error).');
           log(`Error: ${chrome.runtime.lastError.message}`);
-          showNonSpoilers([]);
+          showNonSpoilers(commentsData, []);
+          isProcessing = false;
           return;
         }
 
         if (response && response.spoilerIndices) {
           log('Received spoiler data from background:', response.spoilerIndices);
-          showNonSpoilers(response.spoilerIndices);
+          showNonSpoilers(commentsData, response.spoilerIndices);
         } else {
           showErrorMessage('Failed to retrieve spoiler data.');
-          showNonSpoilers([]);
+          showNonSpoilers(commentsData, []);
         }
+        isProcessing = false;
       });
     } catch (err) {
-      // In case of error, show comments section
+      // In case of error, show comments
+      if (isInitialBatch) {
+        const commentsSection = document.querySelector("#sections.ytd-comments");
+        if (commentsSection) {
+          const commentsContent = commentsSection.querySelector('#contents');
+          if (commentsContent) {
+            commentsContent.style.visibility = 'visible';
+          }
+        }
+      }
+      
+      showErrorMessage(`Unexpected error: ${err.message}`);
+      log(`Unexpected error: ${err.stack}`);
+      showNonSpoilers(commentsData || [], []);
+      isProcessing = false;
+    }
+  }
+
+  (async function() {
+    try {
+      // Inject styles for our UI elements
+      injectStyles();
+      
+      // Wait for initial comments to load
+      const initialComments = await waitForComments();
+      
+      // Process the initial batch of comments
+      await processNewComments(initialComments);
+      
+      // Set up an observer to process new comments as they load
+      const commentObserver = observeCommentAddition();
+      
+      // Clean up when navigating away
+      window.addEventListener('beforeunload', () => {
+        if (commentObserver) {
+          commentObserver.disconnect();
+        }
+      });
+      
+    } catch (err) {
+      // In case of error, ensure comments are visible
       const commentsSection = document.querySelector("#sections.ytd-comments");
       if (commentsSection) {
         const commentsContent = commentsSection.querySelector('#contents');
@@ -291,7 +368,6 @@
       
       showErrorMessage(`Unexpected error: ${err.message}`);
       log(`Unexpected error: ${err.stack}`);
-      showNonSpoilers([]);
     }
   })();
 })();

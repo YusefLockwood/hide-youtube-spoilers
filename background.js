@@ -88,10 +88,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const data = await response.json();
         log('Received AI response', data);
 
-        if (debugMode) {
-          console.log(JSON.stringify(data, null, 2));
-        }
-
         const aiMessage = data?.choices?.[0]?.message?.content;
 
         let result = {};
