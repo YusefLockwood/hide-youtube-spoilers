@@ -1,4 +1,4 @@
-# YouTube Spoiler Hider
+# YouTube Spoiler Hider <img src="icons/icon48.png" alt="YouTube Spoiler Hider Icon" align="right" />
 
 A Chrome extension that uses AI to hide spoilers in YouTube comments, keeping your viewing experience enjoyment intact.
 
@@ -11,6 +11,7 @@ YouTube Spoiler Hider is a browser extension that analyzes comments on YouTube v
 - **AI-Powered Spoiler Detection**: Uses OpenRouter AI models to analyze comment content for spoilers
 - **Automatic Comment Processing**: Analyzes comments in batches as they load
 - **Clean User Interface**: Indicates when comments are being scanned and how many spoilers were hidden
+- **Badge Counter**: Shows the number of hidden spoilers on the extension icon
 - **Minimal Configuration**: Just add your API key and you're ready to go
 - **Performance Optimized**: Only processes new comments as they appear
 - **Error Handling**: Gracefully handles connection issues and ensures comments remain visible if something goes wrong
@@ -45,7 +46,10 @@ YouTube Spoiler Hider is a browser extension that analyzes comments on YouTube v
    - Hide all comments initially
    - Analyze them for spoilers
    - Show only non-spoiler comments
+   - Display a badge with the count of hidden spoilers
    - Continue to analyze new comments as they load when scrolling
+
+The badge count shows the total number of spoilers hidden on the current page. When you switch tabs, the badge updates to reflect the spoiler count for the active tab.
 
 No additional action is required on your part.
 
@@ -56,7 +60,8 @@ No additional action is required on your part.
 3. The background script sends the comments to the OpenRouter API for analysis
 4. The AI model identifies which comments contain spoilers
 5. Comments without spoilers are shown, while spoilers remain hidden
-6. As new comments load while scrolling, they are automatically processed
+6. A badge on the extension icon shows the count of hidden spoilers for the current tab
+7. As new comments load while scrolling, they are automatically processed and the badge updates
 
 ## Development
 
@@ -69,8 +74,10 @@ No additional action is required on your part.
 ├── options.js         # Options page functionality
 ├── options.html       # Options page UI
 ├── styles.css         # Shared styles
-└── icons/             # Extension icons
+└── icons/             # Extension icons (icon16.png, icon48.png, icon128.png)
 ```
+
+> **Note:** You'll need to add your own icon files in the icons directory before publishing or loading the extension. These icons are displayed in the browser toolbar and are used for the badge counter feature.
 
 ### Building from Source
 
